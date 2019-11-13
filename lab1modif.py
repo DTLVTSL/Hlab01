@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 #Linear Least Squares solution
 #stochastic gradient algorithm using adam method
 #conjugate gradient algorithm
@@ -11,43 +9,54 @@
 #beta1. The exponential decay rate for the first moment estimates (e.g. 0.9).
 #beta2. The exponential decay rate for the second-moment estimates (e.g. 0.999). This value should be set close to 1.0 on problems with a sparse gradient (e.g. NLP and computer vision problems).
 #epsilon. Is a very small number to prevent any division by zero in the implementation (e.g. 10E-8).
-
-
+#more infomation on the 
 #https://hackernoon.com/implementing-different-variants-of-gradient-descent-optimization-algorithm-in-python-using-numpy-809e7ab3bab4
+#https://github.com/Niranjankumar-c/GradientDescent_Implementation/blob/master/VectorisedGDAlgorithms.ipynb
+#https://towardsdatascience.com/adam-latest-trends-in-deep-learning-optimization-6be9a291375c
+#https://towardsdatascience.com/10-gradient-descent-optimisation-algorithms-86989510b5e9
+#https://machinelearningmastery.com/adam-optimization-algorithm-for-deep-learning/
+
+
+#to do
+#fix gradient
+#put the error comparison curves
+#
+
 
 
 import numpy as np
 import pandas as pd
 from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
+plt.rcParams.update({'figure.max_open_warning': 0})
 plt.style.use('classic')
 
 def normalz(dataset):#Normalizing entire dataframe but not few columns.
     dataNorm=(dataset-data_train.mean())/np.sqrt(data_train.std())
-    dataNorm["subject#"]=dataset["subject#"]
-    #dataNorm["age"]=dataset["age"]
+    dataNorm["subject#"]=dataset["subject#"]  #we are not nomalizing subject because we ae not using on the regression
+    #dataNorm["age"]=dataset["age"] 
     #dataNorm["sex"]=dataset["sex"]
-    dataNorm["test_time"]=dataset["test_time"]
+    dataNorm["test_time"]=dataset["test_time"] #we are not using test time on the regression
     #dataNorm["motor_UPDRS"]=dataset["motor_UPDRS"]
     #dataNorm["total_UPDRS"]=dataset["total_UPDRS"]
     return dataNorm
 
-#LINEAR LEAST SQUARE -PSEUDOINVERSE
-def SolveLLS(y,A,yT,AT,yV,AV):   # class SolveLLS belongs to class SolveMinProb  
+#Linear Least Squares solution with pseudoinvese
+def SolveLLS(y,A,yT,AT,yV,AV):   # method SolveLLS (Y train, x train, y test, x test ,y validation x validation)  
     w=np.dot(np.dot(np.linalg.inv(np.dot(A.T,A)),A.T),y)  #pseudoinverse calculation
-    yhat_train = np.dot(A,w)     
-    yhat_test = np.dot(AT,w)
-    yhat_val = np.dot(AV,w)
-    yhat_train_nonnorm= (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
-    yhat_test_nonnorm=  (np.array(yhat_test) * np.sqrt(y_tn.std()))+y_tn.mean()
-    yhat_val_nonnorm=  (np.array(yhat_val) * np.sqrt(y_tn.std()))+y_tn.mean() 
-    y_train_nonnorm= (np.array(y) * np.sqrt(y_tn.std()))+y_tn.mean()
-    e_train = (np.dot(A,w)-y)
-    e_test = (np.dot(AT,w)-yT)
-    e_val = (np.dot(AV,w)-yV)
-    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
-    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
+    yhat_train = np.dot(A,w)    #estimated y train UPDRS values based on calculated w
+    yhat_test = np.dot(AT,w)    #estimated y test UPDS values based on calculated w
+    yhat_val = np.dot(AV,w)     #estimated y validation UPDS values based on calculated w
+    yhat_train_nonnorm= (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()  #transfom normalized in non normalized values
+    yhat_test_nonnorm=  (np.array(yhat_test) * np.sqrt(y_tn.std()))+y_tn.mean()   #transfom normalized in non normalized values
+    yhat_val_nonnorm=  (np.array(yhat_val) * np.sqrt(y_tn.std()))+y_tn.mean()     #transform normalized in non normalized values 
+    y_train_nonnorm= (np.array(y) * np.sqrt(y_tn.std()))+y_tn.mean()              #transform normalized in non normalized values   
+    e_train = (np.dot(A,w)-y) #error(estimated ytrain - original ytrain)
+    e_test = (np.dot(AT,w)-yT)#error (estimated ytest - original ytest)
+    e_val = (np.dot(AV,w)-yV) #error (estimated yvalidation - original yvalidation)
+    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y) #minimum square error on train 
+    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)#minimum square error on test
+    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  #minimum square eor on validation
     
     #error histogram for LLS
     plt.figure(figsize=(13,6))
@@ -119,8 +128,7 @@ def SolveLLS(y,A,yT,AT,yV,AV):   # class SolveLLS belongs to class SolveMinProb
     plt.xlabel("F0")
     plt.ylabel("Occurrencies")
     plt.legend(loc=2) 
-  
-    
+      
     plt.figure(figsize=(13,6))
     plt.plot(yhat_test_nonnorm[:100], color="black", label="yhat_test")
     plt.plot(y_tt[:100], label="Y test")
@@ -137,32 +145,35 @@ def SolveLLS(y,A,yT,AT,yV,AV):   # class SolveLLS belongs to class SolveMinProb
     plt.ylabel("Original values")
     plt.legend(loc=2)    
     return w
-
-def SolveGrad(y,A,yT,AT,yV,AV): 
-    max_iterations = 100
-    gamma=1.0e-8
+#gradient algorithm
+def SolveGrad(y,A,yT,AT,yV,AV):#method to solve conjugated gradient (Y train, x train, y test, x test ,y validation x validation)  
+    max_iterations = 100   #maximum and defined number of iterations 
+    iterations = 0
+    gamma=1.0e-8            #gamma or
     Nf=A.shape[1] # number of columns
     a_prev = np.ones(Nf)
     w=np.random.rand(Nf,1)# random initialization of w
     grad=-2*(np. dot (A.T,y)) + 2*(np.dot(np.dot(A.T,A),w))
-    iterations = 0
     GRADe_historyTRAIN = []
     GRADe_historyVAL = []
     GRADe_historyTEST = []
     e_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y) 
     e_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
     e_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)
-    while np.linalg.norm(w-a_prev) > 1e-8 and iterations < max_iterations:
-        iterations += 1
+    
+    for iterations in range(max_iterations):
+        grad = 2 * np.dot(A.T,(np.dot(A,w)-y))
+        w2 = w - gamma*grad
+        if np.linalg.norm(w2-w) < 1e-4:
+            w = w2
+            break
+        w=w2
         GRADe_historyTRAIN += [e_train] 
         GRADe_historyTEST += [e_test] 
         GRADe_historyVAL += [e_test]                                   
-        a_prev = w
-        w = w - gamma * grad
         e_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y) 
         e_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
         e_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)
-        grad=-2*(np. dot (A.T,y)) + 2*(np.dot(np.dot(A.T,A),w))        
     yhat_train = np.dot(A,w)     
     yhat_test = np.dot(AT,w)
     yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
@@ -174,16 +185,8 @@ def SolveGrad(y,A,yT,AT,yV,AV):
     mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
     mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
     
-    plt.figure(figsize=(13,6))
-    plt.plot(GRADe_historyTRAIN, color="black", label="GRAD error TRAIN History")
-    plt.plot(GRADe_historyTEST, label="GRAD error TEST History")
-    plt.plot(GRADe_historyVAL, label="GRAD error VAL History")
-    plt.title("GRAD ERROR")
-    plt.xlabel("ITERATIONS")
-    plt.ylabel("ERROR")
-    plt.legend(loc=2) 
    
-    #error histogram for LLS
+    #error histogram for gradient
     plt.figure(figsize=(13,6))
     plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
     plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
@@ -263,8 +266,8 @@ def SolveGrad(y,A,yT,AT,yV,AV):
     return w
  
 def SteepDesc(y,A,yT,AT,yV,AV):
-    max_iterations = 100
-    Nf=A.shape[1] # number of columns
+    max_iterations = 100 #maximum number of iterations defined
+    Nf=A.shape[1] # number of columns 
     w=np.zeros((Nf,1),dtype=float) # column vector w 
     w=np.random.rand(Nf,1)# random initialization of w
     iterations = 0
@@ -291,7 +294,7 @@ def SteepDesc(y,A,yT,AT,yV,AV):
     mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
     mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
   
-    #error histogram for LLS
+    #error histogram for SteepDescend
     plt.figure(figsize=(13,6))
     plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
     plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
@@ -370,36 +373,34 @@ def SteepDesc(y,A,yT,AT,yV,AV):
     plt.legend(loc=2)    
     return w
 
-def stochastic(A,yT,AT,yV,AV):
-    max_iterations = 100
-    learning_coefficient = 1.0e-05
-    Nf=A.shape[1]-1 # number of columns
-    w=np.zeros((Nf,1),dtype=float) # column vector w 
-    w=np.random.rand(Nf,1)# random initialization of w
-    y=A[F0].to_numpy().reshape(-1, 1)
-    y_train=A[F0].to_numpy().reshape(-1, 1)
-    X_train=A.drop(columns=[F0]).to_numpy()
+def stochastic(A,yT,AT,yV,AV): #method to sollve by stochastic gradient
+    max_iterations = 100  #defined maximum number of iterations
+    learning_coefficient = 1.0e-05 #learning coeficient 
+    Nf=A.shape[1]-1 # number of columns used to create a initial random w matrix
+    w=np.random.rand(Nf,1) #random initialization of w
+    y=A[F0].to_numpy().reshape(-1, 1) #convert from list to numpy vector
+    y_train=A[F0].to_numpy().reshape(-1, 1) #convert from list to numpy vector
+    X_train=A.drop(columns=[F0]).to_numpy() #remove F0 from train X, F0 vaiable to estimated
     e_train = (np.linalg.norm(np.dot(X_train,w) - y_train)**2)/len(y)
     #e_train = np.linalg.norm(X_train.dot(w) - y_train)**2
-    iterations = 0
-    e_history = [e_train]
-    batch_size = 10
-    shuffled = shuffle(A)
-    while iterations < max_iterations:
-        iterations += 1
-        shuffled = shuffle(A)
-        y_train = shuffled[F0].to_numpy().reshape(-1, 1)
-        X_train = shuffled.drop(columns=[F0]).to_numpy()
-        batch_prev = 0
-        for batch in range(batch_size, len(X_train), batch_size):
-            X_batch = X_train[batch_prev:batch]
-            y_batch = y_train[batch_prev:batch]
-            #batch_gradient = -2 * X_batch.T.dot(y_batch) + 2 * X_batch.T.dot(X_batch).dot(w)
+    iterations = 0  #start iterations from 0
+    e_history = [e_train]  #create a list of historical values of train error
+    batch_size = 10  # size of used batches
+    shuffled = shuffle(A) #shuffle X train again
+    while iterations < max_iterations: # do it for the total of defined iterations
+        iterations += 1  #increase the counter of iterations
+        shuffled = shuffle(A) # shuffle the X train again
+        y_train = shuffled[F0].to_numpy().reshape(-1, 1)  #shuffle y train and convert to a numpy vector, this because i dont know how to shuffle using numpy
+        X_train = shuffled.drop(columns=[F0]).to_numpy()  #shuffle X train and convert to a numpy vector, this because i dont know how to shuffle using numpy
+        batch_prev = 0  #create the batch prev variable
+        for batch in range(batch_size, len(X_train), batch_size): #do it for batches ,spliting the dataset in batches
+            X_batch = X_train[batch_prev:batch]  # took batch size from X
+            y_batch = y_train[batch_prev:batch] #took batch size from y
             #batch_gradient = 2*np.dot(X_batch.T,(np.dot(X_batch,w)-y_batch))
-            batch_gradient=-2 * X_batch.T.dot(y_batch) + 2 * X_batch.T.dot(X_batch).dot(w)
-            w = w - (learning_coefficient * batch_gradient)
+            batch_gradient=-2 * X_batch.T.dot(y_batch) + 2 * X_batch.T.dot(X_batch).dot(w) #calculate gradient 
+            w = w - (learning_coefficient * batch_gradient) #w - (step size = gradient * learning rate)
             batch_prev = batch
-        e_train =(np.linalg.norm(np.dot(X_train,w) - y_train)**2)/len(y)
+        e_train =(np.linalg.norm(np.dot(X_train,w) - y_train)**2)/len(y) #calculate the error
         e_history += [e_train]
 
     y_train=A[F0].to_numpy().reshape(-1, 1)
@@ -478,7 +479,7 @@ def SteepDescADAM(y,A,yT,AT,yV,AV):
     epsilon = 0.00000001
     m = 0
     v = 0
-    max_iterations = 100
+    max_iterations = 1000
     Nf=A.shape[1] # number of columns
     w=np.zeros((Nf,1),dtype=float) # column vector w 
     w=np.random.rand(Nf,1)# random initialization of w
@@ -712,6 +713,122 @@ def ridge(y,A,yT,AT,yV,AV):
     plt.legend(loc=2)    
     return w
 
+
+
+def ConjugateGRAD(y,A,yT,AT,yV,AV): 
+    Nf=A.shape[1] # number of columns
+    a_prev = np.ones(Nf)
+    w=np.random.rand(Nf,1)# random initialization of w
+    #e_train = (np.linalg.norm(A.dot(w) - y)**2)+(lbda*(np.linalg.norm(w)**2))
+    e_train = (np.linalg.norm(np.dot(A,w) - y)**2)/len(y)
+    iterations = 0
+    e_history = []
+    b=2*np.dot(A.T,y)
+    d=b
+    g=-b
+    Q=2*np.dot(A.T,A)
+
+    for it in range(Nf):  # Iterations on number of features
+        alpha = -((np.dot(d.T,g))/(np.dot(np.dot(d.T,Q),d)))
+        w = w + alpha*d
+        #g = np.dot(Q,w) - b
+        g = g + alpha*(np.dot(Q,d))
+        beta = np.dot(np.dot(g.T,Q),d)/np.dot(np.dot(d.T,Q),d)
+        d = -g + beta*d
+        # Errors on de-standardized vectors.
+
+
+    yhat_train = np.dot(A,w)     
+    yhat_test = np.dot(AT,w)
+    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
+    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(y_tn.std()))+y_tn.mean() 
+    e_train = (np.dot(A,w)-y)
+    e_test = (np.dot(AT,w)-yT)
+    e_val = (np.dot(AV,w)-yV)
+    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
+    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
+    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
+
+
+    print ("Conjugated GRAD error TRAIN", mse_train)  
+    print ("Conjugated GRAD error TEST", mse_test)
+    print ("Conjugated GRAD error VALIDATION", mse_val)  
+    #error histogram for LLS
+    plt.figure(figsize=(13,6))
+    plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
+    plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
+    plt.hist(e_val, bins=50, label="error Yhat_validation-Y_validation", alpha=0.4)    
+    plt.title("Error histogram for Conjugated GRAD, Train, Test, Validation")
+    plt.xlabel("error")
+    plt.ylabel("Occurrencies")
+    plt.legend(loc=2)
+
+    plt.figure(figsize=(13,6))
+    plt.scatter(y,yhat_train, label="Conjugated GRAD", marker="o", color="green", alpha=0.3)
+    plt.plot(y,y,color="black", linewidth=0.4)
+    plt.title("Train - y_true VS y_hat")
+    plt.xlabel("y_true")
+    plt.ylabel("y_hat")
+    plt.legend(loc=2)
+    
+    plt.figure(figsize=(13,6))
+    plt.scatter(y_tn,yhat_train_nonnorm, label="Conjugated GRAD", marker="o", color="green", alpha=0.3)
+    plt.plot(y_tn,y_tn,color="black", linewidth=0.4)
+    plt.title("Train non normalized - y_true VS y_hat")
+    plt.xlabel("y_true")
+    plt.ylabel("y_hat")
+    plt.legend(loc=2)
+    
+    plt.figure(figsize=(13,6))
+    plt.scatter(yT,yhat_test, label="Conjugated GRAD", marker="o", color="orange", alpha=0.3)
+    plt.plot(yT,yT,color="black", linewidth=0.4)
+    plt.title("Test - y_true VS y_hat")
+    plt.xlabel("y_true")
+    plt.ylabel("y_hat")
+    plt.legend(loc=2)     
+    
+    plt.figure(figsize=(13,6))
+    plt.scatter(y_tt,yhat_test_nonnorm, label="Conjugated GRAD", marker="o", color="orange", alpha=0.3)
+    plt.plot(y_tt,y_tt,color="black", linewidth=0.4)
+    plt.title("Test non normalized- y_true VS y_hat")
+    plt.xlabel("y_true")
+    plt.ylabel("y_hat")
+    plt.legend(loc=2)    
+
+    plt.figure(figsize=(13,6))
+    plt.hist(y, bins=50, label="Y_train", alpha=0.4)
+    plt.hist(yhat_train, bins=50, label="Yhat_train", alpha=0.4)
+    plt.title("Train -histogram for Conjugated GRAD")
+    plt.xlabel("F0")
+    plt.ylabel("Occurrencies")
+    plt.legend(loc=2)
+    
+    plt.figure(figsize=(13,6))
+    plt.hist(yT, bins=50, label="Y_train", alpha=0.4)
+    plt.hist(yhat_test, bins=50, label="Yhat_train", alpha=0.4)
+    plt.title("Test - histogram for Conjugated GRAD")
+    plt.xlabel("F0")
+    plt.ylabel("Occurrencies")
+    plt.legend(loc=2)
+    
+    plt.figure(figsize=(13,6))
+    plt.plot(yhat_test_nonnorm[:100], color="black", label="yhat_test")
+    plt.plot(y_tt[:100], label="Y test")
+    plt.title("Test prediction for Conjugated GRAD")
+    plt.xlabel("Sample index")
+    plt.ylabel("Original value")
+    plt.legend(loc=2)
+
+    plt.figure(figsize=(13,6))
+    plt.plot(yhat_train_nonnorm [:100], color="black", label="yhat_train")
+    plt.plot(y_tn[:100], label="Y train")
+    plt.title("Train prediction for Conjugated GRAD")
+    plt.xlabel("Sample index")
+    plt.ylabel("Original values")
+    plt.legend(loc=2)    
+    return w
+
+
 if __name__ == "__main__":  
 
     plt.style.use('ggplot')
@@ -856,7 +973,8 @@ if __name__ == "__main__":
     wStc=stochastic(tn_stoch,yT,AT,yV,AV)
     wStDA=SteepDescADAM(y,A,yT,AT,yV,AV)
     wRid=ridge(y,A,yT,AT,yV,AV)
-
+    wConGrad=ConjugateGRAD(y,A,yT,AT,yV,AV)
+    
     # multiple line plot
     print("PRINT WLLS", wLLS)
     plt.figure(figsize=(13,6))
@@ -867,7 +985,7 @@ if __name__ == "__main__":
     plt.plot(wStDA, marker='o', markerfacecolor='black', markersize=5, color='blue', linewidth=1, label="SteepDescADAM")
     plt.plot(wStc, marker='o', markerfacecolor='black', markersize=5, color='green', linewidth=1, label="Stochastic")
     plt.plot(wRid, marker='o', markerfacecolor='black', markersize=5, color='orange', linewidth=2, label="RidgeR")
-    #plt.plot(wCGrad, marker='o', markerfacecolor='black', markersize=5, color='red', linewidth=2, label="CGRAD")   
+    plt.plot(wConGrad, marker='o', markerfacecolor='black', markersize=5, color='yellow', linewidth=2, label="ConGRAD")   
     plt.xlabel("n")
     plt.ylabel("w(n)")
     plt.legend()
