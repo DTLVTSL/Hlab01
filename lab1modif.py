@@ -4,7 +4,7 @@
 #conjugate gradient algorithm
 #ridge regression (optimize λ)
 
-#ADAM
+#ADAM r
 #alpha. Also referred to as the learning rate or step size. The proportion that weights are updated (e.g. 0.001). Larger values (e.g. 0.3) results in faster initial learning before the rate is updated. Smaller values (e.g. 1.0E-5) slow learning right down during training
 #beta1. The exponential decay rate for the first moment estimates (e.g. 0.9).
 #beta2. The exponential decay rate for the second-moment estimates (e.g. 0.999). This value should be set close to 1.0 on problems with a sparse gradient (e.g. NLP and computer vision problems).
@@ -17,19 +17,29 @@
 #https://machinelearningmastery.com/adam-optimization-algorithm-for-deep-learning/
 
 
-#to do
-#fix gradient
-#put the error comparison curves
-#
+'''
+to do for un-normalized dataset trainning validation and test
+table with                regression errors
+measured mean
+standard deviation
+mean square value
 
+Draw conclusions
 
+coeficient of determintion r2
 
+ In the table, also list the coefficient of determination R 2
+for the test data.
+Write the report as explained at the end of these slides.
+'''
 import numpy as np
 import pandas as pd
 from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
+import seaborn as sns
 plt.rcParams.update({'figure.max_open_warning': 0})
-plt.style.use('classic')
+from scipy.stats import spearmanr
+from scipy.stats import pearsonr
 
 def normalz(dataset):#Normalizing entire dataframe but not few columns.
     dataNorm=(dataset-data_train.mean())/np.sqrt(data_train.std())
@@ -42,685 +52,347 @@ def normalz(dataset):#Normalizing entire dataframe but not few columns.
     return dataNorm
 
 #Linear Least Squares solution with pseudoinvese
-def SolveLLS(y,A,yT,AT,yV,AV):   # method SolveLLS (Y train, x train, y test, x test ,y validation x validation)  
-    w=np.dot(np.dot(np.linalg.inv(np.dot(A.T,A)),A.T),y)  #pseudoinverse calculation
-    yhat_train = np.dot(A,w)    #estimated y train UPDRS values based on calculated w
-    yhat_test = np.dot(AT,w)    #estimated y test UPDS values based on calculated w
-    yhat_val = np.dot(AV,w)     #estimated y validation UPDS values based on calculated w
-    yhat_train_nonnorm= (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()  #transfom normalized in non normalized values
-    yhat_test_nonnorm=  (np.array(yhat_test) * np.sqrt(y_tn.std()))+y_tn.mean()   #transfom normalized in non normalized values
-    yhat_val_nonnorm=  (np.array(yhat_val) * np.sqrt(y_tn.std()))+y_tn.mean()     #transform normalized in non normalized values 
-    y_train_nonnorm= (np.array(y) * np.sqrt(y_tn.std()))+y_tn.mean()              #transform normalized in non normalized values   
-    e_train = (np.dot(A,w)-y) #error(estimated ytrain - original ytrain)
-    e_test = (np.dot(AT,w)-yT)#error (estimated ytest - original ytest)
-    e_val = (np.dot(AV,w)-yV) #error (estimated yvalidation - original yvalidation)
-    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y) #minimum square error on train 
-    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)#minimum square error on test
-    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  #minimum square eor on validation
+def SolveLLS(y,A,yT,AT,yV,AV,trainmean,trainstd):   # method SolveLLS (Y train, x train, y test, x test ,y validation x validation)  
+    w   =   np.dot(np.dot(np.linalg.inv(np.dot(A.T,A)),A.T),y)  #pseudoinverse calculation
+    yhat_train = np.dot(A,w)   #estimated y train UPDRS values based on calculated w
+    yhat_test  = np.dot(AT,w)  #estimated y test UPDS values based on calculated w
+    yhat_val   = np.dot(AV,w)  #estimated y validation UPDS values based on calculated w
+    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_val_nonnorm   = (np.array(yhat_val)   * np.sqrt(trainstd)+trainmean)  #transform normalized in non normalized values 
+    y_nonnorm  = (np.array(y)  * np.sqrt(trainstd)+trainmean)
+    yT_nonnorm = (np.array(yT) * np.sqrt(trainstd)+trainmean)
+    yV_nonnorm = (np.array(yV) * np.sqrt(trainstd)+trainmean)
+    e_train = (yhat_train_nonnorm-y_nonnorm)    #error(estimated ytrain - original ytrain)
+    e_test  = (yhat_test_nonnorm-yT_nonnorm)    #error (estimated ytest - original ytest)
+    e_val   = (yhat_val_nonnorm-yV_nonnorm)     #error (estimated yvalidation - original yvalidation)
+    mse_train = (np.linalg.norm(yhat_train_nonnorm-y_nonnorm)**2)/len(y)
+    mse_test  = (np.linalg.norm(yhat_test_nonnorm-yT_nonnorm)**2)/len(yT)
+    mse_val   = (np.linalg.norm(yhat_val_nonnorm-yV_nonnorm)**2)/len(yV)
     
-    #error histogram for LLS
-    plt.figure(figsize=(13,6))
-    plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
-    plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
-    plt.hist(e_val, bins=50, label="error Yhat_validation-Y_validation", alpha=0.4)    
-    plt.title("Error histogram for LLS, Train, Test, Validation")
-    plt.xlabel("error")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-
+    c = np.dot(AT,w)
+    mean1 = yT.mean() 
+    mean2 = c.mean()
+    std1 = yT.std()
+    std2 = c.std()
+    corr = ((yT*c).mean()-mean1*mean2)/(std1*std2)
+    print("LLS coefficient of determination R2",corr)
     print ("LLS error TRAIN", mse_train)  
     print ("LLS error TEST", mse_test)
-    print ("LLS error VALIDATION", mse_val)
+    print ("LLS error VALIDATION", mse_val)                                                                                                                                                                                     
 
-    plt.figure(figsize=(13,6))
-    plt.scatter(y,yhat_train, label="LLS", marker="o", color="green", alpha=0.3)
-    plt.plot(y,y,color="black", linewidth=0.4)
-    plt.title("Train - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
+    #PLOTS for LLS
+    plt.figure(figsize=(6,6))
+    plt.scatter(y_nonnorm,yhat_train_nonnorm, label="LLS", marker="o",s=0.8, color="red", alpha=0.8)
+    plt.plot(y_nonnorm,y_nonnorm,color="black", linewidth=0.5)
+    plt.title("Train un-normalized - y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
     plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tn,yhat_train_nonnorm, label="LLS", marker="o", color="green", alpha=0.3)
-    plt.plot(y_tn,y_tn,color="black", linewidth=0.4)
-    plt.title("Train non normalized - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(yT,yhat_test, label="LLS", marker="o", color="orange", alpha=0.3)
-    plt.plot(yT,yT,color="black", linewidth=0.4)
-    plt.title("Test - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)     
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tt,yhat_test_nonnorm, label="LLS", marker="o", color="orange", alpha=0.3)
-    plt.plot(y_tt,y_tt,color="black", linewidth=0.4)
-    plt.title("Test non normalized- y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)    
+    plt.savefig('imag/lls_train_yvsyhat.png')
+    plt.show()
+    plt.close()
 
+    plt.figure(figsize=(6,6))
+    plt.scatter(yT_nonnorm,yhat_test_nonnorm, label="LLS", marker="o",s=0.8, color="blue", alpha=0.8)
+    plt.plot(yT_nonnorm,yT_nonnorm,color="black",linewidth=0.5)
+    plt.title("Test un-normalized- y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)  
+    plt.savefig('imag/lls_test_yvsyhat.png')
+    plt.show()
+    plt.close()
 
-    plt.figure(figsize=(13,6))
-    plt.hist(y_train_nonnorm, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_train_nonnorm, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Train -histogram for LLS")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
+    plt.figure(figsize=(6,6))
+    plt.scatter(yV_nonnorm,yhat_val_nonnorm, label="LLS", marker="o",s=0.8, color="blue", alpha=0.8)
+    plt.plot(yV_nonnorm,yV_nonnorm,color="black",linewidth=0.5)
+    plt.title("Validation un-normalized- y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)  
+    plt.savefig('imag/lls_validation_yvsyhat.png')
+    plt.show() 
+    plt.close() 
     
-    plt.figure(figsize=(13,6))
-    plt.hist(y_train_nonnorm, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_test_nonnorm, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Test - histogram for LLS")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.hist(y_train_nonnorm, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_val_nonnorm, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Test - histogram for LLS")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2) 
-      
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_test_nonnorm[:100], color="black", label="yhat_test")
+    plt.figure(figsize=(6,6))
+    plt.plot(yhat_test_nonnorm[:100], color="red", label="yhat_test")
     plt.plot(y_tt[:100], label="Y test")
-    plt.title("Test prediction for LLS")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original value")
+    plt.title("Test prediction for LLS",fontsize=20)
+    plt.xlabel("Sample index",fontsize=16)
+    plt.ylabel("Original value",fontsize=16)
     plt.legend(loc=2)
-  
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_train_nonnorm [:100], color="black", label="yhat_train")
-    plt.plot(y_tn[:100], label="Y train")
-    plt.title("Train prediction for LLS")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original values")
-    plt.legend(loc=2)    
-    return w
-#gradient algorithm
-def SolveGrad(y,A,yT,AT,yV,AV):#method to solve conjugated gradient (Y train, x train, y test, x test ,y validation x validation)  
-    max_iterations = 100   #maximum and defined number of iterations 
-    iterations = 0
-    gamma=1.0e-8            #gamma or
-    Nf=A.shape[1] # number of columns
-    a_prev = np.ones(Nf)
-    w=np.random.rand(Nf,1)# random initialization of w
-    grad=-2*(np. dot (A.T,y)) + 2*(np.dot(np.dot(A.T,A),w))
-    GRADe_historyTRAIN = []
-    GRADe_historyVAL = []
-    GRADe_historyTEST = []
-    e_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y) 
-    e_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-    e_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)
-    
-    for iterations in range(max_iterations):
-        grad = 2 * np.dot(A.T,(np.dot(A,w)-y))
-        w2 = w - gamma*grad
-        if np.linalg.norm(w2-w) < 1e-4:
-            w = w2
-            break
-        w=w2
-        GRADe_historyTRAIN += [e_train] 
-        GRADe_historyTEST += [e_test] 
-        GRADe_historyVAL += [e_test]                                   
-        e_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y) 
-        e_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-        e_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)
-    yhat_train = np.dot(A,w)     
-    yhat_test = np.dot(AT,w)
-    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
-    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(y_tn.std()))+y_tn.mean() 
-    e_train = (np.dot(A,w)-y)
-    e_test = (np.dot(AT,w)-yT)
-    e_val = (np.dot(AV,w)-yV)
-    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
-    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
-    
-   
-    #error histogram for gradient
+    plt.savefig('imag/lls_test_frame_yvsyhat.png')
+    plt.show()
+    plt.close()
+
     plt.figure(figsize=(13,6))
     plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
     plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
     plt.hist(e_val, bins=50, label="error Yhat_validation-Y_validation", alpha=0.4)    
-    plt.title("Error histogram for GRAD, Train, Test, Validation")
-    plt.xlabel("error")
-    plt.ylabel("Occurrencies")
+    plt.title("Error histogram for GRAD, Train, Test, Validation",fontsize=20)
+    plt.xlabel("error",fontsize=16)
+    plt.ylabel("Occurrencies",fontsize=16)
     plt.legend(loc=2)
-
-    print ("GRAD error TRAIN", mse_train)  
-    print ("GRAD error TEST", mse_test)
-    print ("GRAD error VALIDATION", mse_val)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y,yhat_train, label="GRAD", marker="o", color="green", alpha=0.3)
-    plt.plot(y,y,color="black", linewidth=0.4)
-    plt.title("Train - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tn,yhat_train_nonnorm, label="GRAD", marker="o", color="green", alpha=0.3)
-    plt.plot(y_tn,y_tn,color="black", linewidth=0.4)
-    plt.title("Train non normalized - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(yT,yhat_test, label="GRAD", marker="o", color="orange", alpha=0.3)
-    plt.plot(yT,yT,color="black", linewidth=0.4)
-    plt.title("Test - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)     
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tt,yhat_test_nonnorm, label="GRAD", marker="o", color="orange", alpha=0.3)
-    plt.plot(y_tt,y_tt,color="black", linewidth=0.4)
-    plt.title("Test non normalized- y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)    
-
-    plt.figure(figsize=(13,6))
-    plt.hist(y, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_train, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Train -histogram for GRAD")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.hist(yT, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_test, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Test - histogram for GRAD")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_test_nonnorm[:100], color="black", label="yhat_test")
-    plt.plot(y_tt[:100], label="Y test")
-    plt.title("Test prediction for GRAD")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original value")
-    plt.legend(loc=2)
-
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_train_nonnorm [:100], color="black", label="yhat_train")
-    plt.plot(y_tn[:100], label="Y train")
-    plt.title("Train prediction for GRAD")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original values")
-    plt.legend(loc=2)    
+    plt.savefig('imag/lls_histogram_error.png')
+    plt.show()
+    plt.close()
     return w
- 
-def SteepDesc(y,A,yT,AT,yV,AV):
-    max_iterations = 100 #maximum number of iterations defined
-    Nf=A.shape[1] # number of columns 
-    w=np.zeros((Nf,1),dtype=float) # column vector w 
-    w=np.random.rand(Nf,1)# random initialization of w
-    iterations = 0
-    e_history = []
-    e_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
-    while iterations < max_iterations:
-        iterations += 1
-        e_history += [e_train]
-        e_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y) 
-        grad=-2*(np. dot (A.T,y)) + 2*(np.dot(np.dot(A.T,A),w))
-        hes= 4*np.dot(A.T,A)
-        learncof=(np.linalg.norm(grad)**2)/(np.dot((np.dot(grad.T,hes)),grad))
-        w=w-(learncof*grad)
-        #err[it,1]=np.linalg.norm(np.dot(A,w)-y)
-   
-    yhat_train = np.dot(A,w)     
-    yhat_test = np.dot(AT,w)
-    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
-    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(y_tn.std()))+y_tn.mean() 
-    e_train = (np.dot(A,w)-y)
-    e_test = (np.dot(AT,w)-yT)
-    e_val = (np.dot(AV,w)-yV)
-    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
-    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
-  
-    #error histogram for SteepDescend
-    plt.figure(figsize=(13,6))
-    plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
-    plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
-    plt.hist(e_val, bins=50, label="error Yhat_validation-Y_validation", alpha=0.4)    
-    plt.title("Error histogram for SteepDesc, Train, Test, Validation")
-    plt.xlabel("error")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-
-    print ("SteepDesc error TRAIN", mse_train)  
-    print ("SteepDesc error TEST", mse_test)
-    print ("SteepDesc error VALIDATION", mse_val)  
-
-    plt.figure(figsize=(13,6))
-    plt.scatter(y,yhat_train, label="SteepDesc", marker="o", color="green", alpha=0.3)
-    plt.plot(y,y,color="black", linewidth=0.4)
-    plt.title("Train - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tn,yhat_train_nonnorm, label="SteepDesc", marker="o", color="green", alpha=0.3)
-    plt.plot(y_tn,y_tn,color="black", linewidth=0.4)
-    plt.title("Train non normalized - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(yT,yhat_test, label="SteepDesc", marker="o", color="orange", alpha=0.3)
-    plt.plot(yT,yT,color="black", linewidth=0.4)
-    plt.title("Test - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)     
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tt,yhat_test_nonnorm, label="SteepDesc", marker="o", color="orange", alpha=0.3)
-    plt.plot(y_tt,y_tt,color="black", linewidth=0.4)
-    plt.title("Test non normalized- y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)    
-
-    plt.figure(figsize=(13,6))
-    plt.hist(y, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_train, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Train -histogram for SteepDesc")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.hist(yT, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_test, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Test - histogram for SteepDesc")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_test_nonnorm[:100], color="black", label="yhat_test")
-    plt.plot(y_tt[:100], label="Y test")
-    plt.title("Test prediction SteepDesc")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original value")
-    plt.legend(loc=2)
-  
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_train_nonnorm [:100], color="black", label="yhat_train")
-    plt.plot(y_tn[:100], label="Y train")
-    plt.title("Train prediction SteepDesc")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original values")
-    plt.legend(loc=2)    
-    return w
-
-def stochastic(A,yT,AT,yV,AV): #method to sollve by stochastic gradient
-    max_iterations = 100  #defined maximum number of iterations
-    learning_coefficient = 1.0e-05 #learning coeficient 
-    Nf=A.shape[1]-1 # number of columns used to create a initial random w matrix
-    w=np.random.rand(Nf,1) #random initialization of w
-    y=A[F0].to_numpy().reshape(-1, 1) #convert from list to numpy vector
-    y_train=A[F0].to_numpy().reshape(-1, 1) #convert from list to numpy vector
-    X_train=A.drop(columns=[F0]).to_numpy() #remove F0 from train X, F0 vaiable to estimated
-    e_train = (np.linalg.norm(np.dot(X_train,w) - y_train)**2)/len(y)
-    #e_train = np.linalg.norm(X_train.dot(w) - y_train)**2
-    iterations = 0  #start iterations from 0
-    e_history = [e_train]  #create a list of historical values of train error
-    batch_size = 10  # size of used batches
-    shuffled = shuffle(A) #shuffle X train again
-    while iterations < max_iterations: # do it for the total of defined iterations
-        iterations += 1  #increase the counter of iterations
-        shuffled = shuffle(A) # shuffle the X train again
-        y_train = shuffled[F0].to_numpy().reshape(-1, 1)  #shuffle y train and convert to a numpy vector, this because i dont know how to shuffle using numpy
-        X_train = shuffled.drop(columns=[F0]).to_numpy()  #shuffle X train and convert to a numpy vector, this because i dont know how to shuffle using numpy
-        batch_prev = 0  #create the batch prev variable
-        for batch in range(batch_size, len(X_train), batch_size): #do it for batches ,spliting the dataset in batches
-            X_batch = X_train[batch_prev:batch]  # took batch size from X
-            y_batch = y_train[batch_prev:batch] #took batch size from y
-            #batch_gradient = 2*np.dot(X_batch.T,(np.dot(X_batch,w)-y_batch))
-            batch_gradient=-2 * X_batch.T.dot(y_batch) + 2 * X_batch.T.dot(X_batch).dot(w) #calculate gradient 
-            w = w - (learning_coefficient * batch_gradient) #w - (step size = gradient * learning rate)
-            batch_prev = batch
-        e_train =(np.linalg.norm(np.dot(X_train,w) - y_train)**2)/len(y) #calculate the error
-        e_history += [e_train]
-
-    y_train=A[F0].to_numpy().reshape(-1, 1)
-    X_train=A.drop(columns=[F0]).to_numpy()
-    yhat_train = np.dot(X_train,w)     
-    yhat_test = np.dot(AT,w)
-    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
-    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(y_tn.std()))+y_tn.mean() 
-    e_train = (np.dot(X_train,w)-y_train)
-    e_test = (np.dot(AT,w)-yT)
-    e_val = (np.dot(AV,w)-yV)
-    mse_train = (np.linalg.norm(np.dot(X_train,w)-y_train)**2)/len(y_train)
-    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
-
-    #error histogram for LLS
-    plt.figure(figsize=(13,6))
-    plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
-    plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
-    plt.hist(e_val, bins=50, label="error Yhat_validation-Y_validation", alpha=0.4)    
-    plt.title("Error histogram for Stochastic, Train, Test, Validation")
-    plt.xlabel("error")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-
-    print ("Stochastic error TRAIN", mse_train)  
-    print ("Stochastic error TEST", mse_test)
-    print ("Stochastic error VALIDATION", mse_val)  
-
-    plt.figure(figsize=(13,6))
-    plt.scatter(yT,yhat_test, label="stochastic", marker="o", color="orange", alpha=0.3)
-    plt.plot(yT,yT,color="black", linewidth=0.4)
-    plt.title("Test - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)    
-        
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tt,yhat_test_nonnorm, label="stochastic", marker="o", color="orange", alpha=0.3)
-    plt.plot(y_tt,y_tt,color="black", linewidth=0.4)
-    plt.title("Test non normalized- y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)    
-
-    plt.figure(figsize=(13,6))
-    plt.hist(y, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_train, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Train -histogram for stochastic")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.hist(yT, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_test, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Test - histogram for stochastic")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_train_nonnorm [:200], color="black", label="yhat_train")
-    plt.plot(y_tn[:200], label="Y train")
-    plt.title("Train prediction stochastic")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original values")
-    plt.legend(loc=2)   
-    return w
-
-
-def SteepDescADAM(y,A,yT,AT,yV,AV):
-    alfa = 0.001
+#Stochastic ADAM    
+def StochasticADAM(y,A,yT,AT,yV,AV,trainmean,trainstd):
+    alfa  = 0.001
     beta1 = 0.9
     beta2 = 0.999
-    epsilon = 0.00000001
+    epsilon = 0.0000001
     m = 0
     v = 0
-    max_iterations = 1000
-    Nf=A.shape[1] # number of columns
-    w=np.zeros((Nf,1),dtype=float) # column vector w 
-    w=np.random.rand(Nf,1)# random initialization of w
+    max_iterations = 100000
+    Nf = A.shape[1] # number of columns
+    w  = np.zeros((Nf,1),dtype=float) # column vector w 
+    w  = np.random.rand(Nf,1)# random initialization of w
     iterations = 0
-    e_history = []
-    e_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
-   
-    """
-    for t in range(num_iterations):
-    g = compute_gradient(x, y)
-    m = beta_1 * m + (1 - beta_1) * g
-    v = beta_2 * v + (1 - beta_2) * np.power(g, 2)
-    m_hat = m / (1 - np.power(beta_1, t))
-    v_hat = v / (1 - np.power(beta_2, t))
-    w = w - step_size * m_hat / (np.sqrt(v_hat) + epsilon)
-    """
+    e_history  = []
+    yhat_train = np.dot(A,w)   #estimated y train UPDRS values based on calculated w
+    yhat_test  = np.dot(AT,w)  #estimated y test UPDS values based on calculated w
+    yhat_val   = np.dot(AV,w)  #estimated y validation UPDS values based on calculated w
+    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_val_nonnorm   = (np.array(yhat_val)   * np.sqrt(trainstd)+trainmean)  #transform normalized in non normalized values 
+    y_nonnorm   = (np.array(y)  * np.sqrt(trainstd)+trainmean)
+    yT_nonnorm  = (np.array(yT) * np.sqrt(trainstd)+trainmean)
+    yV_nonnorm  = (np.array(yV) * np.sqrt(trainstd)+trainmean)
+    e_train = (yhat_train_nonnorm-y_nonnorm) #error(estimated ytrain - original ytrain)
+    e_test  = (yhat_test_nonnorm-yT_nonnorm) #error (estimated ytest - original ytest)
+    e_val   = (yhat_val_nonnorm-yV_nonnorm)  #error (estimated yvalidation - original yvalidation)
         
     while iterations < max_iterations:
         iterations += 1
         e_history += [e_train]
-        e_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y) 
-        grad=-2*(np. dot (A.T,y)) + 2*(np.dot(np.dot(A.T,A),w))
-        m= beta1 * m +(1-beta1)*grad
+        e_train = (yhat_train_nonnorm-y_nonnorm) #error(estimated ytrain - original ytrain)
+        grad = -2*(np. dot (A.T,y)) + 2*(np.dot(np.dot(A.T,A),w))
+        m = beta1 * m +(1-beta1)*grad
         v = beta2 * v +(1+beta2)*np.power(grad,2)
         m_hat = m / (1 - np.power(beta1, iterations))
         v_hat = v / (1 - np.power(beta2, iterations))
-        w = w - alfa* m_hat / (np.sqrt(v_hat) + epsilon)
-
-        #err[it,1]=np.linalg.norm(np.dot(A,w)-y)
+        w = w - alfa * m_hat / (np.sqrt(v_hat) + epsilon)
    
-    yhat_train = np.dot(A,w)     
-    yhat_test = np.dot(AT,w)
-    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
-    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(y_tn.std()))+y_tn.mean() 
-    e_train = (np.dot(A,w)-y)
-    e_test = (np.dot(AT,w)-yT)
-    e_val = (np.dot(AV,w)-yV)
-    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
-    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
+    yhat_train = np.dot(A,w)   #estimated y train UPDRS values based on calculated w
+    yhat_test  = np.dot(AT,w)  #estimated y test UPDS values based on calculated w
+    yhat_val   = np.dot(AV,w)  #estimated y validation UPDS values based on calculated w
+    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_val_nonnorm   = (np.array(yhat_val)   * np.sqrt(trainstd)+trainmean)  #transform normalized in non normalized values 
+    y_nonnorm  = (np.array(y)  * np.sqrt(trainstd)+trainmean)
+    yT_nonnorm = (np.array(yT) * np.sqrt(trainstd)+trainmean)
+    yV_nonnorm = (np.array(yV) * np.sqrt(trainstd)+trainmean)
+    e_train = (yhat_train_nonnorm-y_nonnorm) #error(estimated ytrain - original ytrain)
+    e_test  = (yhat_test_nonnorm-yT_nonnorm) #error (estimated ytest - original ytest)
+    e_val   = (yhat_val_nonnorm-yV_nonnorm)  #error (estimated yvalidation - original yvalidation)
+    mse_train = (np.linalg.norm(yhat_train_nonnorm-y_nonnorm)**2)/len(y)
+    mse_test  = (np.linalg.norm(yhat_test_nonnorm-yT_nonnorm)**2)/len(yT)
+    mse_val   = (np.linalg.norm(yhat_val_nonnorm-yV_nonnorm)**2)/len(yV)
   
-    #error histogram for LLS
+    c=np.dot(AT,w)
+    mean1 = yT.mean() 
+    mean2 = c.mean()
+    std1 = yT.std()
+    std2 = c.std()
+    corr = ((yT*c).mean()-mean1*mean2)/(std1*std2)
+    print("Stochastic ADAM coefficient of determination R2",corr)
+    print ("stochastic_ADAM error TRAIN", mse_train)  
+    print ("stochastic_ADAM error TEST", mse_test)
+    print ("stochastic_ADAM error VALIDATION", mse_val)  
+
+    #PLOTS for stochastic ADAM
+    plt.figure(figsize=(6,6))
+    plt.scatter(y_nonnorm,yhat_train_nonnorm, label="stochastic_ADAM", marker="o",s=0.8, color="red", alpha=0.8)
+    plt.plot(y_nonnorm,y_nonnorm,color="black", linewidth=0.5)
+    plt.title("Train un-normalized - y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)
+    plt.savefig('imag/stochastic_ADAM_train_yvsyhat.png')
+    plt.show()
+    plt.close()
+
+    plt.figure(figsize=(6,6))
+    plt.scatter(yT_nonnorm,yhat_test_nonnorm, label="stochastic_ADAM", marker="o",s=0.8, color="blue", alpha=0.8)
+    plt.plot(yT_nonnorm,yT_nonnorm,color="black",linewidth=0.5)
+    plt.title("Test un-normalized- y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)  
+    plt.savefig('imag/stochastic_ADAM_test_yvsyhat.png')
+    plt.show()
+    plt.close()
+
+    plt.figure(figsize=(6,6))
+    plt.scatter(yV_nonnorm,yhat_val_nonnorm, label="stochastic_ADAM", marker="o",s=0.8, color="blue", alpha=0.8)
+    plt.plot(yV_nonnorm,yV_nonnorm,color="black",linewidth=0.5)
+    plt.title("Validation un-normalized- y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)  
+    plt.savefig('imag/stochastic_ADAM_validation_yvsyhat.png')
+    plt.show() 
+    plt.close() 
+    
+    plt.figure(figsize=(6,6))
+    plt.plot(yhat_test_nonnorm[:100], color="red", label="yhat_test")
+    plt.plot(y_tt[:100], label="Y test")
+    plt.title("Test prediction for stochastic_ADAM",fontsize=20)
+    plt.xlabel("Sample index",fontsize=16)
+    plt.ylabel("Original value",fontsize=16)
+    plt.legend(loc=2)
+    plt.savefig('imag/stochastic_ADAM_test_frame_yvsyhat.png')
+    plt.show()
+    plt.close()
+
     plt.figure(figsize=(13,6))
     plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
     plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
     plt.hist(e_val, bins=50, label="error Yhat_validation-Y_validation", alpha=0.4)    
-    plt.title("Error histogram for SteepDescADAM, Train, Test, Validation")
-    plt.xlabel("error")
-    plt.ylabel("Occurrencies")
+    plt.title("Error histogram for stochastic_ADAM, Train, Test, Validation",fontsize=20)
+    plt.xlabel("error",fontsize=16)
+    plt.ylabel("Occurrencies",fontsize=16)
     plt.legend(loc=2)
-
-    print ("SteepDescADAM error TRAIN", mse_train)  
-    print ("SteepDescADAM error TEST", mse_test)
-    print ("SteepDescADAM error VALIDATION", mse_val)  
-
-    plt.figure(figsize=(13,6))
-    plt.scatter(y,yhat_train, label="SteepDescADAM", marker="o", color="green", alpha=0.3)
-    plt.plot(y,y,color="black", linewidth=0.4)
-    plt.title("Train - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tn,yhat_train_nonnorm, label="SteepDescADAM", marker="o", color="green", alpha=0.3)
-    plt.plot(y_tn,y_tn,color="black", linewidth=0.4)
-    plt.title("Train non normalized - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(yT,yhat_test, label="SteepDescADAM", marker="o", color="orange", alpha=0.3)
-    plt.plot(yT,yT,color="black", linewidth=0.4)
-    plt.title("Test - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)     
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tt,yhat_test_nonnorm, label="SteepDescADAM", marker="o", color="orange", alpha=0.3)
-    plt.plot(y_tt,y_tt,color="black", linewidth=0.4)
-    plt.title("Test non normalized- y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)    
-
-    plt.figure(figsize=(13,6))
-    plt.hist(y, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_train, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Train -histogram for SteepDescADAM")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.hist(yT, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_test, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Test - histogram for SteepDescADAM")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_test_nonnorm[:100], color="black", label="yhat_test")
-    plt.plot(y_tt[:100], label="Y test")
-    plt.title("Test prediction SteepDescADAM")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original value")
-    plt.legend(loc=2)
-  
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_train_nonnorm [:100], color="black", label="yhat_train")
-    plt.plot(y_tn[:100], label="Y train")
-    plt.title("Train prediction SteepDescADAM")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original values")
-    plt.legend(loc=2)    
+    plt.savefig('imag/stochastic_ADAM_histogram_error.png')
+    plt.show()
+    plt.close()
     return w
 
-
-def ridge(y,A,yT,AT,yV,AV): 
-    max_iterations = 100
-    gamma=1.0e-8
+def ridge(y,A,yT,AT,yV,AV,trainmean,trainstd): 
+    max_iterations = 100000
+    gamma=1.0e-6
     lbda= 1.0e-5
     Nf=A.shape[1] # number of columns
     a_prev = np.ones(Nf)
     w=np.random.rand(Nf,1)# random initialization of w
-    #e_train = (np.linalg.norm(A.dot(w) - y)**2)+(lbda*(np.linalg.norm(w)**2))
-    e_train = (np.linalg.norm(np.dot(A,w) - y)**2)/len(y)
+    yhat_train = np.dot(A,w)   #estimated y train UPDRS values based on calculated w
+    yhat_test  = np.dot(AT,w)  #estimated y test UPDS values based on calculated w
+    yhat_val   = np.dot(AV,w)  #estimated y validation UPDS values based on calculated w
+    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_val_nonnorm   = (np.array(yhat_val)   * np.sqrt(trainstd)+trainmean)  #transform normalized in non normalized values 
+    y_nonnorm   = (np.array(y)  * np.sqrt(trainstd)+trainmean)
+    yT_nonnorm  = (np.array(yT) * np.sqrt(trainstd)+trainmean)
+    yV_nonnorm  = (np.array(yV) * np.sqrt(trainstd)+trainmean)
+    e_train = (yhat_train_nonnorm-y_nonnorm) #error(estimated ytrain - original ytrain)
+    e_test  = (yhat_test_nonnorm-yT_nonnorm) #error (estimated ytest - original ytest)
+    e_val   = (yhat_val_nonnorm-yV_nonnorm)  #error (estimated yvalidation - original yvalidation)
     grad=-2*(np. dot (A.T,y)) + 2*(np.dot(np.dot(A.T,A),w)) + 2*(lbda*w)
     iterations = 0
     e_history = []
 
     while np.linalg.norm(w-a_prev) > 1e-8 and iterations < max_iterations:
         iterations += 1
-        #print iterations, np.linalg.norm(self.a-a_prev), self.e_train
         e_history += [e_train]                                           
         a_prev = w
         w = w - gamma * grad
-        e_train = (np.linalg.norm(np.dot(A,w) - y)**2)/len(y)
+        e_train = (yhat_train_nonnorm-y_nonnorm) #error(estimated ytrain - original ytrain)
         grad=-2*(np. dot (A.T,y)) + 2*(np.dot(np.dot(A.T,A),w)) + 2*(lbda*w)        
 
-    yhat_train = np.dot(A,w)     
-    yhat_test = np.dot(AT,w)
-    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
-    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(y_tn.std()))+y_tn.mean() 
-    e_train = (np.dot(A,w)-y)
-    e_test = (np.dot(AT,w)-yT)
-    e_val = (np.dot(AV,w)-yV)
-    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
-    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
+    yhat_train = np.dot(A,w)   #estimated y train UPDRS values based on calculated w
+    yhat_test  = np.dot(AT,w)  #estimated y test UPDS values based on calculated w
+    yhat_val   = np.dot(AV,w)  #estimated y validation UPDS values based on calculated w
+    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_val_nonnorm   = (np.array(yhat_val)   * np.sqrt(trainstd)+trainmean)  #transform normalized in non normalized values 
+    y_nonnorm  = (np.array(y)  * np.sqrt(trainstd)+trainmean)
+    yT_nonnorm = (np.array(yT) * np.sqrt(trainstd)+trainmean)
+    yV_nonnorm = (np.array(yV) * np.sqrt(trainstd)+trainmean)
+    e_train = (yhat_train_nonnorm-y_nonnorm) #error(estimated ytrain - original ytrain)
+    e_test  = (yhat_test_nonnorm-yT_nonnorm) #error (estimated ytest - original ytest)
+    e_val   = (yhat_val_nonnorm-yV_nonnorm)  #error (estimated yvalidation - original yvalidation)
+    mse_train = (np.linalg.norm(yhat_train_nonnorm-y_nonnorm)**2)/len(y)
+    mse_test  = (np.linalg.norm(yhat_test_nonnorm-yT_nonnorm)**2)/len(yT)
+    mse_val   = (np.linalg.norm(yhat_val_nonnorm-yV_nonnorm)**2)/len(yV)
 
+    c=np.dot(AT,w)
+    mean1 = yT.mean() 
+    mean2 = c.mean()
+    std1 = yT.std()
+    std2 = c.std()
+    corr = ((yT*c).mean()-mean1*mean2)/(std1*std2)
+    print ("Ridge coefficient of determination R2",corr)
+    print ("Ridge error TRAIN", mse_train)  
+    print ("Ridge error TEST", mse_test)
+    print ("Ridge error VALIDATION", mse_val)  
 
-    print ("ridge error TRAIN", mse_train)  
-    print ("ridge error TEST", mse_test)
-    print ("ridge error VALIDATION", mse_val)  
-    #error histogram for LLS
+    #PLOTS for Ridge
+    plt.figure(figsize=(6,6))
+    plt.scatter(y_nonnorm,yhat_train_nonnorm, label="Ridge", marker="o",s=0.8, color="red", alpha=0.8)
+    plt.plot(y_nonnorm,y_nonnorm,color="black", linewidth=0.5)
+    plt.title("Train un-normalized - y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)
+    plt.savefig('imag/Ridge_train_yvsyhat.png')
+    plt.show()
+    plt.close()
+
+    plt.figure(figsize=(6,6))
+    plt.scatter(yT_nonnorm,yhat_test_nonnorm, label="Ridge", marker="o",s=0.8, color="blue", alpha=0.8)
+    plt.plot(yT_nonnorm,yT_nonnorm,color="black",linewidth=0.5)
+    plt.title("Test un-normalized- y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)  
+    plt.savefig('imag/Ridge_test_yvsyhat.png')
+    plt.show()
+    plt.close()
+
+    plt.figure(figsize=(6,6))
+    plt.scatter(yV_nonnorm,yhat_val_nonnorm, label="Ridge", marker="o",s=0.8, color="blue", alpha=0.8)
+    plt.plot(yV_nonnorm,yV_nonnorm,color="black",linewidth=0.5)
+    plt.title("Validation un-normalized- y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)  
+    plt.savefig('imag/Ridge_validation_yvsyhat.png')
+    plt.show() 
+    plt.close() 
+    
+    plt.figure(figsize=(6,6))
+    plt.plot(yhat_test_nonnorm[:100], color="red", label="yhat_test")
+    plt.plot(y_tt[:100], label="Y test")
+    plt.title("Test prediction for Ridge",fontsize=20)
+    plt.xlabel("Sample index",fontsize=16)
+    plt.ylabel("Original value",fontsize=16)
+    plt.legend(loc=2)
+    plt.savefig('imag/Ridge_test_frame_yvsyhat.png')
+    plt.show()
+    plt.close()
+
     plt.figure(figsize=(13,6))
     plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
     plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
     plt.hist(e_val, bins=50, label="error Yhat_validation-Y_validation", alpha=0.4)    
-    plt.title("Error histogram for Ridge, Train, Test, Validation")
-    plt.xlabel("error")
-    plt.ylabel("Occurrencies")
+    plt.title("Error histogram for Ridge, Train, Test, Validation",fontsize=20)
+    plt.xlabel("error",fontsize=16)
+    plt.ylabel("Occurrencies",fontsize=16)
     plt.legend(loc=2)
-
-    plt.figure(figsize=(13,6))
-    plt.scatter(y,yhat_train, label="ridge", marker="o", color="green", alpha=0.3)
-    plt.plot(y,y,color="black", linewidth=0.4)
-    plt.title("Train - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tn,yhat_train_nonnorm, label="ridge", marker="o", color="green", alpha=0.3)
-    plt.plot(y_tn,y_tn,color="black", linewidth=0.4)
-    plt.title("Train non normalized - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(yT,yhat_test, label="ridge", marker="o", color="orange", alpha=0.3)
-    plt.plot(yT,yT,color="black", linewidth=0.4)
-    plt.title("Test - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)     
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tt,yhat_test_nonnorm, label="ridge", marker="o", color="orange", alpha=0.3)
-    plt.plot(y_tt,y_tt,color="black", linewidth=0.4)
-    plt.title("Test non normalized- y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)    
-
-    plt.figure(figsize=(13,6))
-    plt.hist(y, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_train, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Train -histogram for ridge")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.hist(yT, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_test, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Test - histogram for ridge")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_test_nonnorm[:100], color="black", label="yhat_test")
-    plt.plot(y_tt[:100], label="Y test")
-    plt.title("Test prediction for ridge")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original value")
-    plt.legend(loc=2)
-
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_train_nonnorm [:100], color="black", label="yhat_train")
-    plt.plot(y_tn[:100], label="Y train")
-    plt.title("Train prediction for ridge")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original values")
-    plt.legend(loc=2)    
+    plt.savefig('imag/Ridge_histogram_error.png')
+    plt.show()
+    plt.close()
     return w
 
-
-
-def ConjugateGRAD(y,A,yT,AT,yV,AV): 
+def ConjugateGRAD(y,A,yT,AT,yV,AV,trainmean,trainstd): 
     Nf=A.shape[1] # number of columns
     a_prev = np.ones(Nf)
-    w=np.random.rand(Nf,1)# random initialization of w
-    #e_train = (np.linalg.norm(A.dot(w) - y)**2)+(lbda*(np.linalg.norm(w)**2))
-    e_train = (np.linalg.norm(np.dot(A,w) - y)**2)/len(y)
+    w  = np.zeros((Nf,1),dtype=float) # column vector w
+    yhat_train = np.dot(A,w)   #estimated y train UPDRS values based on calculated w
+    yhat_test  = np.dot(AT,w)  #estimated y test UPDS values based on calculated w
+    yhat_val   = np.dot(AV,w)  #estimated y validation UPDS values based on calculated w
+    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_val_nonnorm   = (np.array(yhat_val)   * np.sqrt(trainstd)+trainmean)  #transform normalized in non normalized values 
+    y_nonnorm   = (np.array(y)  * np.sqrt(trainstd)+trainmean)
+    yT_nonnorm  = (np.array(yT) * np.sqrt(trainstd)+trainmean)
+    yV_nonnorm  = (np.array(yV) * np.sqrt(trainstd)+trainmean)
+    e_train = (yhat_train_nonnorm-y_nonnorm) #error(estimated ytrain - original ytrain)
+    e_test  = (yhat_test_nonnorm-yT_nonnorm) #error (estimated ytest - original ytest)
+    e_val   = (yhat_val_nonnorm-yV_nonnorm)  #error (estimated yvalidation - original yvalidation)
     iterations = 0
     e_history = []
     b=2*np.dot(A.T,y)
@@ -737,110 +409,99 @@ def ConjugateGRAD(y,A,yT,AT,yV,AV):
         d = -g + beta*d
         # Errors on de-standardized vectors.
 
+    yhat_train = np.dot(A,w)   #estimated y train UPDRS values based on calculated w
+    yhat_test  = np.dot(AT,w)  #estimated y test UPDS values based on calculated w
+    yhat_val   = np.dot(AV,w)  #estimated y validation UPDS values based on calculated w
+    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(trainstd)+trainmean)  #transfom normalized in non normalized values
+    yhat_val_nonnorm   = (np.array(yhat_val)   * np.sqrt(trainstd)+trainmean)  #transform normalized in non normalized values 
+    y_nonnorm  = (np.array(y)  * np.sqrt(trainstd)+trainmean)
+    yT_nonnorm = (np.array(yT) * np.sqrt(trainstd)+trainmean)
+    yV_nonnorm = (np.array(yV) * np.sqrt(trainstd)+trainmean)
+    e_train = (yhat_train_nonnorm-y_nonnorm) #error(estimated ytrain - original ytrain)
+    e_test  = (yhat_test_nonnorm-yT_nonnorm) #error (estimated ytest - original ytest)
+    e_val   = (yhat_val_nonnorm-yV_nonnorm)  #error (estimated yvalidation - original yvalidation)
+    mse_train = (np.linalg.norm(yhat_train_nonnorm-y_nonnorm)**2)/len(y)
+    mse_test  = (np.linalg.norm(yhat_test_nonnorm-yT_nonnorm)**2)/len(yT)
+    mse_val   = (np.linalg.norm(yhat_val_nonnorm-yV_nonnorm)**2)/len(yV)
 
-    yhat_train = np.dot(A,w)     
-    yhat_test = np.dot(AT,w)
-    yhat_train_nonnorm = (np.array(yhat_train) * np.sqrt(y_tn.std()))+y_tn.mean()
-    yhat_test_nonnorm  = (np.array(yhat_test)  * np.sqrt(y_tn.std()))+y_tn.mean() 
-    e_train = (np.dot(A,w)-y)
-    e_test = (np.dot(AT,w)-yT)
-    e_val = (np.dot(AV,w)-yV)
-    mse_train = (np.linalg.norm(np.dot(A,w)-y)**2)/len(y)
-    mse_test = (np.linalg.norm(np.dot(AT,w)-yT)**2)/len(yT)
-    mse_val = (np.linalg.norm(np.dot(AV,w)-yV)**2)/len(yV)  
-
-
+    c=np.dot(AT,w)
+    mean1 = yT.mean() 
+    mean2 = c.mean()
+    std1 = yT.std()
+    std2 = c.std()
+    corr = ((yT*c).mean()-mean1*mean2)/(std1*std2)
+    print ("Conjugated GRAD coefficient of determination R2",corr)
     print ("Conjugated GRAD error TRAIN", mse_train)  
     print ("Conjugated GRAD error TEST", mse_test)
     print ("Conjugated GRAD error VALIDATION", mse_val)  
-    #error histogram for LLS
+
+    #PLOTS for Conjugate_grad
+    plt.figure(figsize=(6,6))
+    plt.scatter(y_nonnorm,yhat_train_nonnorm, label="Conjugate_grad", marker="o",s=0.8, color="red", alpha=0.8)
+    plt.plot(y_nonnorm,y_nonnorm,color="black", linewidth=0.5)
+    plt.title("Train un-normalized - y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)
+    plt.savefig('imag/Conjugate_grad_train_yvsyhat.png')
+    plt.show()
+    plt.close()
+
+    plt.figure(figsize=(6,6))
+    plt.scatter(yT_nonnorm,yhat_test_nonnorm, label="Conjugate_grad", marker="o",s=0.8, color="blue", alpha=0.8)
+    plt.plot(yT_nonnorm,yT_nonnorm,color="black",linewidth=0.5)
+    plt.title("Test un-normalized- y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)  
+    plt.savefig('imag/Conjugate_grad_test_yvsyhat.png')
+    plt.show()
+    plt.close()
+
+    plt.figure(figsize=(6,6))
+    plt.scatter(yV_nonnorm,yhat_val_nonnorm, label="Conjugate_grad", marker="o",s=0.8, color="blue", alpha=0.8)
+    plt.plot(yV_nonnorm,yV_nonnorm,color="black",linewidth=0.5)
+    plt.title("Validation un-normalized- y_true VS y_hat",fontsize=20)
+    plt.xlabel("y_true",fontsize=16)
+    plt.ylabel("y_hat",fontsize=16)
+    plt.legend(loc=2)  
+    plt.savefig('imag/Conjugate_grad_validation_yvsyhat.png')
+    plt.show() 
+    plt.close() 
+    
+    plt.figure(figsize=(6,6))
+    plt.plot(yhat_test_nonnorm[:100], color="red", label="yhat_test")
+    plt.plot(y_tt[:100], label="Y test")
+    plt.title("Test prediction for Conjugate_grad",fontsize=20)
+    plt.xlabel("Sample index",fontsize=16)
+    plt.ylabel("Original value",fontsize=16)
+    plt.legend(loc=2)
+    plt.savefig('imag/Conjugate_grad_test_frame_yvsyhat.png')
+    plt.show()
+    plt.close()
+
     plt.figure(figsize=(13,6))
     plt.hist(e_train, bins=50, label="error Yhat_train-Y_train", alpha=0.4)
     plt.hist(e_test, bins=50, label="error Yhat_test-Y_test", alpha=0.4)
     plt.hist(e_val, bins=50, label="error Yhat_validation-Y_validation", alpha=0.4)    
-    plt.title("Error histogram for Conjugated GRAD, Train, Test, Validation")
-    plt.xlabel("error")
-    plt.ylabel("Occurrencies")
+    plt.title("Error histogram for Conjugate_grad, Train, Test, Validation",fontsize=20)
+    plt.xlabel("error",fontsize=16)
+    plt.ylabel("Occurrencies",fontsize=16)
     plt.legend(loc=2)
-
-    plt.figure(figsize=(13,6))
-    plt.scatter(y,yhat_train, label="Conjugated GRAD", marker="o", color="green", alpha=0.3)
-    plt.plot(y,y,color="black", linewidth=0.4)
-    plt.title("Train - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tn,yhat_train_nonnorm, label="Conjugated GRAD", marker="o", color="green", alpha=0.3)
-    plt.plot(y_tn,y_tn,color="black", linewidth=0.4)
-    plt.title("Train non normalized - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(yT,yhat_test, label="Conjugated GRAD", marker="o", color="orange", alpha=0.3)
-    plt.plot(yT,yT,color="black", linewidth=0.4)
-    plt.title("Test - y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)     
-    
-    plt.figure(figsize=(13,6))
-    plt.scatter(y_tt,yhat_test_nonnorm, label="Conjugated GRAD", marker="o", color="orange", alpha=0.3)
-    plt.plot(y_tt,y_tt,color="black", linewidth=0.4)
-    plt.title("Test non normalized- y_true VS y_hat")
-    plt.xlabel("y_true")
-    plt.ylabel("y_hat")
-    plt.legend(loc=2)    
-
-    plt.figure(figsize=(13,6))
-    plt.hist(y, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_train, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Train -histogram for Conjugated GRAD")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.hist(yT, bins=50, label="Y_train", alpha=0.4)
-    plt.hist(yhat_test, bins=50, label="Yhat_train", alpha=0.4)
-    plt.title("Test - histogram for Conjugated GRAD")
-    plt.xlabel("F0")
-    plt.ylabel("Occurrencies")
-    plt.legend(loc=2)
-    
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_test_nonnorm[:100], color="black", label="yhat_test")
-    plt.plot(y_tt[:100], label="Y test")
-    plt.title("Test prediction for Conjugated GRAD")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original value")
-    plt.legend(loc=2)
-
-    plt.figure(figsize=(13,6))
-    plt.plot(yhat_train_nonnorm [:100], color="black", label="yhat_train")
-    plt.plot(y_tn[:100], label="Y train")
-    plt.title("Train prediction for Conjugated GRAD")
-    plt.xlabel("Sample index")
-    plt.ylabel("Original values")
-    plt.legend(loc=2)    
+    plt.savefig('imag/Conjugate_grad_histogram_error.png')
+    plt.show()
+    plt.close()
     return w
 
-
 if __name__ == "__main__":  
-
-    plt.style.use('ggplot')
+    plt.style.use('seaborn-dark-palette')
     np.random.seed (30)
     df = pd.read_csv("parkinsons_updrs.data")
     #df.test_time = df.test_time.apply(np.abs)
     #df["day"] = df.test_time.astype(np.int64)
     #df = df.groupby(["subject#", "day"]).mean()
     pd = shuffle(df)
-    pd = shuffle(pd)
-    pd = shuffle(pd)
-    pd = shuffle(pd)
     total_rows = len(pd)
     wLLS=[]
     #subject,age,sex,test_time,motor_UPDRS,total_UPDRS,Jitter(%),Jitter(Abs),Jitter:RAP,Jitter:PPQ5,Jitter:DDP,Shimmer,Shimmer(dB),Shimmer:APQ3,Shimmer:APQ5,Shimmer:APQ11,Shimmer:DDA,NHR,HNR,RPDE,DFA,PPE
@@ -851,7 +512,8 @@ if __name__ == "__main__":
     data_train_norm = normalz(data_train)
     data_val_norm = normalz(data_val)
     data_test_norm = normalz(data_test)
-   
+    
+    """
     fig, ax = plt.subplots(2, 3)
     plt.subplots_adjust(bottom=0.15)
     plt.margins(0.2)
@@ -935,18 +597,13 @@ if __name__ == "__main__":
         for j in range(3):
             data_train_norm.hist(column = data_train_norm.columns[m], bins = 12, ax=ax[i,j], figsize=(20, 18))
             m+=1
-    
-    #print(data_val)
-    #print(data_val_norm)
-    #print (data_test_norm.describe())
-    #print (data_val_norm["Jitter(%)"].mean())
-    #define F0 or implement a combination automatically TBD
+    """
     F0 = "total_UPDRS"
     tn_stoch = data_train_norm.drop(columns=["subject#","test_time"])
     y_train = data_train_norm[F0] #collum vector with the feature to be estimated
     X_train =data_train_norm.drop(columns=["subject#","test_time",F0])
-    X_test = data_test_norm.drop(columns=["subject#","test_time",F0])       #data test norm by removing column F0
-    X_val = data_val_norm.drop(columns=["subject#","test_time",F0])         #data val norm by removing column F0
+    X_test = data_test_norm.drop(columns=["subject#","test_time",F0])    #data test norm by removing column F0
+    X_val = data_val_norm.drop(columns=["subject#","test_time",F0])      #data val norm by removing column F0
     y_test=data_test_norm[F0]     #data test norm column F0
     y_val=data_val_norm[F0]       #data val norm column F0
 
@@ -957,6 +614,18 @@ if __name__ == "__main__":
     y_vl=data_val_norm[F0]          #data val norm column F0
     y_tn = data_train_norm[F0]      #collum vector with the feature to be estimated   
     
+    #plot correlation matrix fo the data train 
+    corrmat = X_train.corr() 
+    f, ax = plt.subplots(figsize =(9, 8)) 
+    sns.heatmap(corrmat, ax = ax,
+                cmap ="BuPu",
+                linewidths = 0.05,
+                cbar=True,
+                annot=True,
+                square=True,
+                fmt='.2f',
+                annot_kws={'size': 6})
+
     #print(X_train)
     y=y_train.to_numpy().reshape(len(y_train),1)
     A=X_train.to_numpy()
@@ -966,29 +635,24 @@ if __name__ == "__main__":
     AV=X_val.to_numpy()
     y_tn = (data_train[F0]).to_numpy().reshape(len(data_train[F0]),1)
     y_tt = (data_test[F0]).to_numpy().reshape(len(data_test[F0]),1)
-    
-    wLLS=SolveLLS(y,A,yT,AT,yV,AV) # instantiate the object
-    wGrad=SolveGrad(y,A,yT,AT,yV,AV) # instantiate the object
-    wStD=SteepDesc(y,A,yT,AT,yV,AV)
-    wStc=stochastic(tn_stoch,yT,AT,yV,AV)
-    wStDA=SteepDescADAM(y,A,yT,AT,yV,AV)
-    wRid=ridge(y,A,yT,AT,yV,AV)
-    wConGrad=ConjugateGRAD(y,A,yT,AT,yV,AV)
-    
+    trainmed=y_tn.mean()
+    trainstd=y_tn.std()    
+    wLLS=SolveLLS(y,A,yT,AT,yV,AV,trainmed,trainstd)        # call the linear least square method and pass the variables
+    wStDA=StochasticADAM(y,A,yT,AT,yV,AV,trainmed,trainstd) # call the Stochastic method and pass the variables
+    wRid=ridge(y,A,yT,AT,yV,AV,trainmed,trainstd)           # call the ridge method and pass the variables
+    wConGrad=ConjugateGRAD(y,A,yT,AT,yV,AV,trainmed,trainstd) # call the Conjugated Gradient method and pass the variables
+
     # multiple line plot
     print("PRINT WLLS", wLLS)
     plt.figure(figsize=(13,6))
-    plt.title("W(n) matrix indices", loc='left', fontsize=12, fontweight=0, color='black')
+    plt.title("W(n) matrix indices", loc='left', fontsize=20, fontweight=0, color='black')
+    #LLS not apppears due to to high indexes n values.
     #plt.plot(wLLS, marker='o', markerfacecolor='black', markersize=5, color='blue', linewidth=1, label="LLS")
-    plt.plot(wGrad, marker='o', markerfacecolor='black', markersize=5, color='olive', linewidth=1, label="GRAD")
-    plt.plot(wStD, marker='o', markerfacecolor='black', markersize=5, color='red', linewidth=1, label="SteepDesc")
-    plt.plot(wStDA, marker='o', markerfacecolor='black', markersize=5, color='blue', linewidth=1, label="SteepDescADAM")
-    plt.plot(wStc, marker='o', markerfacecolor='black', markersize=5, color='green', linewidth=1, label="Stochastic")
+    plt.plot(wStDA, marker='o', markerfacecolor='black', markersize=5, color='red', linewidth=1, label="Stochastic_ADAM")
+    plt.plot(wConGrad, marker='o', markerfacecolor='black', markersize=5, color='green', linewidth=2, label="ConGRAD")
     plt.plot(wRid, marker='o', markerfacecolor='black', markersize=5, color='orange', linewidth=2, label="RidgeR")
-    plt.plot(wConGrad, marker='o', markerfacecolor='black', markersize=5, color='yellow', linewidth=2, label="ConGRAD")   
-    plt.xlabel("n")
-    plt.ylabel("w(n)")
+    plt.xlabel("n", fontsize=16)
+    plt.ylabel("w(n)", fontsize=16)
     plt.legend()
     plt.grid()
     plt.show()
-    
