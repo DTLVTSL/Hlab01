@@ -3,35 +3,6 @@
 #stochastic gradient algorithm using adam method
 #conjugate gradient algorithm
 #ridge regression (optimize λ)
-
-#ADAM r
-#alpha. Also referred to as the learning rate or step size. The proportion that weights are updated (e.g. 0.001). Larger values (e.g. 0.3) results in faster initial learning before the rate is updated. Smaller values (e.g. 1.0E-5) slow learning right down during training
-#beta1. The exponential decay rate for the first moment estimates (e.g. 0.9).
-#beta2. The exponential decay rate for the second-moment estimates (e.g. 0.999). This value should be set close to 1.0 on problems with a sparse gradient (e.g. NLP and computer vision problems).
-#epsilon. Is a very small number to prevent any division by zero in the implementation (e.g. 10E-8).
-#more infomation on the 
-#https://hackernoon.com/implementing-different-variants-of-gradient-descent-optimization-algorithm-in-python-using-numpy-809e7ab3bab4
-#https://github.com/Niranjankumar-c/GradientDescent_Implementation/blob/master/VectorisedGDAlgorithms.ipynb
-#https://towardsdatascience.com/adam-latest-trends-in-deep-learning-optimization-6be9a291375c
-#https://towardsdatascience.com/10-gradient-descent-optimisation-algorithms-86989510b5e9
-#https://machinelearningmastery.com/adam-optimization-algorithm-for-deep-learning/
-
-
-'''
-to do for un-normalized dataset trainning validation and test
-table with                regression errors
-measured mean
-standard deviation
-mean square value
-
-Draw conclusions
-
-coeficient of determintion r2
-
- In the table, also list the coefficient of determination R 2
-for the test data.
-Write the report as explained at the end of these slides.
-'''
 import numpy as np
 import pandas as pd
 from sklearn.utils import shuffle
@@ -513,7 +484,6 @@ if __name__ == "__main__":
     data_val_norm = normalz(data_val)
     data_test_norm = normalz(data_test)
     
-    """
     fig, ax = plt.subplots(2, 3)
     plt.subplots_adjust(bottom=0.15)
     plt.margins(0.2)
@@ -554,50 +524,6 @@ if __name__ == "__main__":
         for j in range(3):
             df.hist(column = df.columns[m], bins = 12, ax=ax[i,j], figsize=(20, 18))
             m+=1
-
-#After normatization
-            
-    fig, ax = plt.subplots(2, 3)
-    plt.subplots_adjust(bottom=0.15)
-    plt.margins(0.2)
-    plt.xticks(rotation=90)
-    fig.tight_layout()
-    m=0
-    for i in range(2):
-        for j in range(3):
-            data_train_norm.hist(column = data_train_norm.columns[m], bins = 12, ax=ax[i,j], figsize=(20, 18))
-            m+=1
-    fig, ax = plt.subplots(2, 3)
-    plt.subplots_adjust(bottom=0.15)
-    plt.margins(0.2)
-    plt.xticks(rotation=90)
-    fig.tight_layout()
-    m=7
-    for i in range(2):
-        for j in range(3):
-            data_train_norm.hist(column = data_train_norm.columns[m], bins = 12, ax=ax[i,j], figsize=(20, 18))
-            m+=1
-    fig, ax = plt.subplots(2, 3)
-    plt.subplots_adjust(bottom=0.15)
-    plt.margins(0.2)
-    plt.xticks(rotation=90)
-    fig.tight_layout()
-    m=13
-    for i in range(2):
-        for j in range(3):
-            data_train_norm.hist(column = data_train_norm.columns[m], bins = 12, ax=ax[i,j], figsize=(20, 18))
-            m+=1
-    fig, ax = plt.subplots(2, 3)
-    plt.subplots_adjust(bottom=0.15)
-    plt.margins(0.2)
-    plt.xticks(rotation=90)
-    fig.tight_layout()
-    m=19
-    for i in range(1):
-        for j in range(3):
-            data_train_norm.hist(column = data_train_norm.columns[m], bins = 12, ax=ax[i,j], figsize=(20, 18))
-            m+=1
-    """
     F0 = "total_UPDRS"
     tn_stoch = data_train_norm.drop(columns=["subject#","test_time"])
     y_train = data_train_norm[F0] #collum vector with the feature to be estimated
